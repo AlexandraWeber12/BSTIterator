@@ -1,47 +1,194 @@
-//       $Id: bst.h 43507 2021-05-03 14:33:50Z p20068 $
-//      $URL: https://svn01.fh-hagenberg.at/bin/cepheiden/Lehre/RSE/SWE2/2021/ILV/src/07/bst/src/bst.h $
-// $Revision: 43507 $
-//     $Date: 2021-05-03 16:33:50 +0200 (Mo., 03 Mai 2021) $
-//   $Author: p20068 $
-//   Creator: Peter Kulczycki
-//  Creation: April 30, 2021
-// Copyright: (c) 2021 Peter Kulczycki (peter.kulczycki<AT>fh-hagenberg.at)
-//   License: This document contains proprietary information belonging to
-//            University of Applied Sciences Upper Austria, Campus Hagenberg.
-//            It is distributed under the Boost Software License (see
-//            https://www.boost.org/users/license.html).
+// Creator: Ulrich Mitterhuber - S2010828005
+// Creation date: 05.06.2021
+// Course: Robotics Systems Engineering
+// Exercise: UE4, BSP Binary Search Tree
 
 #pragma once
 
 #include <concepts>
+#include <functional>
+#include <tuple>
 
 namespace swe2 {
 
-template <std::regular T> class bst final {
-   public:
-      using value_t = T;
+	template <typename T> concept RegularLessThanComparable =
+		std::regular <T> &&
+		requires (T const& lhs, T const& rhs) {
+			{lhs < rhs} -> std::convertible_to <bool>;
+	};
 
-      bst () = default;
+	template <RegularLessThanComparable T> class bst final {
+	public:
+		
+		using value_type = T;
+		using size_type = size_t;
 
-      void insert (value_t const & value) {
-         insert (p_root, value);
-      }
+		bst() = default;
 
-   private:
-      struct node_t final {
-         value_t  value   {};
-         node_t * p_left  {nullptr};
-         node_t * p_right {nullptr};
-      };
+		bst(std::initializer_list <value_type> const& init) {
+			for (auto const& e : init) {
+				insert(e);
+			}
+		}
 
-      static void insert (node_t * & p_root, value_t const & value) {
-         if (!p_root)
-            p_root = new node_t {value};
-         else
-            insert (value < p_root->value ? p_root->p_left : p_root->p_right, value);
-      }
+		~bst() {
+			clear();
+		}
 
-      node_t * p_root {nullptr};
-};
+		void apply(std::function <void(value_type)> const& fun) {
+			apply(p_root, fun);
+		}
 
-}   // namespace swe2
+		void clear() {
+			clear(p_root);
+			p_root = nullptr;
+		}
+
+		bool erase(value_type const& value) {
+			return erase(p_root, value);
+		}
+
+		void insert(value_type const& value) {
+			insert(p_root, value, t_size);
+		}
+
+		void insert(std::initializer_list <value_type> const& init) {
+			for (auto const& e : init) {
+				insert(e);
+			}
+		}
+
+		bool empty() {
+			return (p_root == nullptr) ? true : false;
+		}
+
+		size_type size() {
+			return t_size;
+		}
+
+		bool contains() {
+
+		}
+
+	private:
+		struct node_t final {
+			value_type		value{};
+			node_t* p_left{ nullptr };
+			node_t* p_right{ nullptr };
+			size_type count{};
+		};
+
+		static void apply(node_t* const p, std::function <void(value_type)> const& fun) {
+			if (p)
+			{
+				apply(p->p_left, fun);	//Links
+				fun(p->value);			//Wurzel
+				apply(p->p_right, fun);	//Rechts
+
+				//LWR... inorder
+				//WLR... preorder
+				//LRW... postorder
+			}
+		}
+
+		static void clear(node_t* const p) {
+			if (p)
+			{
+				clear(p->p_left);
+				clear(p->p_right);
+
+				delete p;
+			}
+		}
+
+		static std::tuple <node_t*, node_t*> find_symmetric_predecessor(node_t* const p) {
+			node_t* p_prv{ nullptr };
+			node_t* p_sym{ p->p_left };
+
+			while (p_sym->p_right)
+			{
+				p_prv = p_sym;
+				p_sym = p_sym->p_right;
+			}
+			return { p_sym, p_prv };
+		}
+
+		static bool erase(node_t*& p, value_type const& value) {
+			if (p)
+			{
+				if (value < p->value)
+				{
+					return erase(p->p_left, value);
+				}
+				if (value > p->value)
+				{
+					return erase(p->p_right, value);
+				}
+
+				node_t* p_del{ p };
+
+				if (!p_del->p_right)
+				{
+					p = p_del->p_left;
+				}
+				else if (!p_del->p_left)
+				{
+					p = p_del->p_right;
+				}
+				else
+				{
+					auto [p_sym, p_prev] { find_symmetric_predecessor(p_del) };
+
+					p_del->value = std::move(p_sym->value);
+
+					(p_prev ? p_prev->p_right : p_del->p_left) = p_sym->p_left;
+					//if (p_pref = nullptr)
+					//{
+					//	p_pref->p_right = p_sym->p_left;
+					//}
+					//else
+					//{
+					//	p_del->p_left = p_sym->p_left;
+					//}
+					p_del = p_sym;
+				}
+				delete p_del; p_del = nullptr;
+				return true;
+			}
+			return false;
+
+		}
+
+		node_t* findLexiVorfahre(node_t* const p) {
+			if (!p->p_right)
+			{
+				findLexiVorfahre(p->p_right);
+			}
+			return p;
+		}
+
+		static void insert(node_t*& p_root, value_type const& value, size_type &size) { //static da sonst auf inneres p_root zugegriffen wird
+			if (!p_root)
+			{
+				p_root = new node_t{ value };
+				size++;
+			}
+			else
+			{
+				insert(value < p_root->value ? p_root->p_left : p_root->p_right, value, size);
+				//if (value < p_root->value)
+				//{
+				//	insert(p_root->p_left, value);
+				//}
+				//else
+				//{
+				//	insert(p_root->p_right, value);
+				//}
+			}
+		}
+
+		node_t* p_root{ nullptr };
+		size_type t_size{};
+	};
+
+} // namespace swe2
