@@ -20,11 +20,21 @@ namespace swe2 {
 
   template <RegularLessThanComparable T> class bst final {
   public:
+    using value_type = T;
+    using size_type = size_t;
 
-    struct node_t; // ?
+  private:
+    struct node_t final {
+      value_type value{};
+      node_t* p_left{ nullptr };
+      node_t* p_right{ nullptr };
+      size_type count{ 1 };
+    };
 
+  public:
     class iterator final {
     public:
+      iterator() = default;
       iterator(node_t* node, std::stack<node_t*> iteratorStack) :
         p_node{ node },
         m_iteratorStack{ iteratorStack }
@@ -37,33 +47,19 @@ namespace swe2 {
 
       // pre-increment
       const iterator& operator ++() {
-        iterator copie = *this;
-        if (lastActionPop) {
-          lastActionPop = false;
-          //buildUpStack(p_node->p_right);
-          return copie;
-        }
-        if (p_node->p_right != nullptr)
+        if (m_iteratorStack.empty())
         {
-          m_iteratorStack.push(p_node);
-          copie = buildUpStack(p_node->p_right);
+          p_node = nullptr;
+          return *this;
         }
-        else {
-          p_node = m_iteratorStack.top();
-          m_iteratorStack.pop();
-          lastActionPop = true;
-        }
-        
-
-        return copie;
+        p_node = m_iteratorStack.top();
+        m_iteratorStack.pop();
+        buildUpStack(p_node->p_right);
+        return *this;
       }
 
       // post-increment
       iterator operator ++(int) {
-
-
-
-     
 
         return *this;
       }
@@ -72,27 +68,25 @@ namespace swe2 {
         return p_node == rhs.p_node;
       }
 
-    private:
-      node_t* p_node{};
-      std::stack<node_t*> m_iteratorStack;
-      bool lastActionPop = false;
+      const size_type& getNodeCount() const {
+        return p_node->count;
+      }
 
-      iterator buildUpStack(node_t* node) {
-        p_node = node;
-        if (node->p_left)
+    private:
+      node_t* p_node{ nullptr };
+
+      std::stack<node_t*> m_iteratorStack;
+
+      void buildUpStack(node_t* node) {
+        if (node != nullptr)
         {
           m_iteratorStack.push(node);
           buildUpStack(node->p_left);
         }
-        return *this;
       }
     };
 
-    using value_type = T;
-    using size_type = size_t;
     using tree_iterator = iterator;
-
-
     bst() = default;
 
     bst(std::initializer_list<value_type> const& init) {
@@ -115,7 +109,7 @@ namespace swe2 {
       clear();
     }
 
-    tree_iterator begin() {
+    tree_iterator begin() const {
       std::stack<node_t*> iteratorStack;
 
       node_t* currentNode = p_root;
@@ -128,9 +122,9 @@ namespace swe2 {
       return { currentNode, iteratorStack };
     }
 
-    /*tree_iterator end() {
-      return { p_data + n };
-    }*/
+    tree_iterator end() const {
+      return {};
+    }
 
     void apply(std::function <void(value_type)> const& fun) {
       apply(p_root, fun);
@@ -160,21 +154,104 @@ namespace swe2 {
       return p_root == nullptr;
     }
 
-    size_type size() {
+    size_type size() const {
       return t_size;
     }
 
-    bool contains() {
+    bool contains(const T& item) {
+      for (auto it = begin(); it != end(); ++it)
+      {
+        if (*it == item)
+        {
+          return true;
+        }
+      }
+      return false;
+    }
 
+    tree_iterator find(const T& item) {
+      for (auto it = begin(); it != end(); ++it)
+      {
+        if (*it == item)
+        {
+          return it;
+        }
+      }
+      return end();
+    }
+
+    const size_t& count(const T& item) {
+      return find(item).getNodeCount();
+    }
+
+    void swap(bst& other) {
+      node_t* temp_root{ p_root };
+      size_type temp_size{ t_size };
+      p_root = other.p_root;
+      t_size = other.t_size;
+      other.p_root = temp_root;
+      other.t_size = temp_size;
+    }
+
+    friend std::strong_ordering operator <=> (const bst<T>& lhs, const bst<T>& rhs) {
+      if (&lhs == &rhs)
+      {
+        return std::strong_ordering::equivalent;
+      }
+
+      switch (compare(lhs, rhs))
+      {
+      case -1:
+        return std::strong_ordering::less;
+      case 1:
+        return std::strong_ordering::greater;
+      default:
+        return std::strong_ordering::equal;
+      }
+    }
+
+    friend std::ostream& operator << (std::ostream& lhs, const bst<T>& rhs) {
+      for (auto it = rhs.begin(); it != rhs.end(); ++it)
+      {
+        lhs << *it << " ";
+      }
+      return lhs;
     }
 
   private:
-    struct node_t final {
-      value_type value{};
-      node_t* p_left{ nullptr };
-      node_t* p_right{ nullptr };
-      size_type count{ 1 };
-    };
+     static int compare(const bst<T>& lhs, const bst<T>& rhs) {
+      tree_iterator lhsIterator = lhs.begin();
+      tree_iterator rhsIterator = rhs.begin();
+
+      while (lhsIterator != lhs.end() && rhsIterator != rhs.end())
+      {
+        if (*lhsIterator > *rhsIterator)
+        {
+          return 1;
+        }
+
+        if (*lhsIterator < *rhsIterator)
+        {
+          return -1;
+        }
+
+        ++lhsIterator;
+        ++rhsIterator;
+      }
+
+      size_type lhsLength = lhs.size();
+      size_type rhsLength = rhs.size();
+
+      if (lhsLength > rhsLength)
+      {
+        return 1;
+      }
+      else if (lhsLength < rhsLength)
+      {
+        return -1;
+      }
+      return 0;
+    }
 
     static void apply(node_t* const p, std::function <void(value_type)> const& fun) {
       if (p)
@@ -255,18 +332,9 @@ namespace swe2 {
         return true;
       }
       return false;
-
     }
 
-    node_t* findLexiVorfahre(node_t* const p) {
-      if (!p->p_right)
-      {
-        findLexiVorfahre(p->p_right);
-      }
-      return p;
-    }
-
-    static void insert(node_t*& p_root, value_type const& value, size_type& size) { //static da sonst auf inneres p_root zugegriffen wird
+    static void insert(node_t*& p_root, value_type const& value, size_type& size) {
       if (!p_root)
       {
         p_root = new node_t{ value };
@@ -286,7 +354,6 @@ namespace swe2 {
         {
           p_root->count++;
         }
-        //insert(value < p_root->value ? p_root->p_left : p_root->p_right, value, size);
       }
     }
 
