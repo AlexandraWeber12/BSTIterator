@@ -60,8 +60,9 @@ namespace swe2 {
 
       // post-increment
       iterator operator ++(int) {
-
-        return *this;
+        iterator temp{ *this };
+        ++(*this);
+        return temp;
       }
 
       bool operator ==(iterator const& rhs) const {

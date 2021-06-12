@@ -19,7 +19,8 @@ int main() {
 
 	//t.insert(9);
 
-	//auto iterator = t.begin();
+	auto iterator = t.begin();
+	iterator++;
 	//const int& value = *iterator;
 		
 	/*for (auto it = t.begin(); it != t.end(); ++it)
@@ -31,6 +32,8 @@ int main() {
 	//auto result = t1 <=> t1;
 
 	//t.swap(t1);
+
+
 
 	std::cout << t << "\n";
 
