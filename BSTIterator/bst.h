@@ -49,6 +49,7 @@ namespace swe2 {
       const iterator& operator ++() {
         if (m_iteratorStack.empty())
         {
+          // to enable some behavior similar to one-past-end of STL iterators
           p_node = nullptr;
           return *this;
         }
